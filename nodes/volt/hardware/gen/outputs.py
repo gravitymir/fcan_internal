@@ -1,0 +1,177 @@
+#!/usr/bin/env python3
+"""BOM + карта выводов гребёнок из готовой платы."""
+import sys, os, csv, json, re
+from collections import defaultdict
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import kicadenv
+
+kicadenv.quiet()
+import pcbnew
+
+path = sys.argv[1]
+out = os.path.dirname(path)
+name = os.path.splitext(os.path.basename(path))[0]
+b = pcbnew.LoadBoard(path)
+
+rows = defaultdict(list)
+header = {}
+for fp in b.GetFootprints():
+    ref = fp.GetReference()
+    if ref.startswith("REF") or not ref:
+        continue
+    pads = list(fp.Pads())
+    if not pads or all(p.GetAttribute() == pcbnew.PAD_ATTRIB_NPTH for p in pads):
+        continue        # крепёжные отверстия: паять нечего, в BOM для сборки не нужны
+    fid = "%s:%s" % (fp.GetFPID().GetLibNickname(), fp.GetFPID().GetLibItemName())
+    if "SolderJumper" in fid:
+        continue        # паяная перемычка - рисунок на меди, покупать и ставить нечего
+    rows[(fp.GetValue(), fid)].append(ref)
+    # Гребёнки намеренно оставляем без номера LCSC: тип (папа/мама, прямые/угловые)
+    # выбирается при сборке, поэтому их паяют сами. Остальная выводная мелочь -
+    # разъёмы, кнопки - на заводе ставится штатно, если номер проставлен: JLCPCB
+    # паяет выводное на тарифе Standard, оплата по контактам. Признак - имя
+    # футпринта, а не тип пада: по паду под правило попадали и разъёмы тоже.
+    if "PinHeader" in fid or "SolderWire" in fid:
+        header[fp.GetValue()] = True
+
+# Номера LCSC из списка Basic Parts JLCPCB. Ключ - номинал вместе с футпринтом:
+# 100nF в 0402 и в 0603 это разные детали с разными номерами.
+LCSC = {
+    ("100nF", "C_0402_1005Metric"): "C1525",     # Samsung CL05B104KO5NNNC, 16 В
+    ("18pF", "C_0402_1005Metric"): "C1549",      # Fenghua 0402CG180J500NT, 50 В, C0G
+    ("100nF", "C_0603_1608Metric"): "C14663",    # Yageo CC0603KRX7R9BB104, 50 В
+    ("1uF", "C_0603_1608Metric"): "C15849",      # Samsung CL10A105KB8NNNC, 50 В
+    ("1uF", "C_0402_1005Metric"): "C52923",      # Samsung CL05A105KA5NQNC, 25 В, X5R - выход LDO, EN RC
+    ("2.2uF", "C_0603_1608Metric"): "C23630",    # Samsung CL10A225KO8NNNC, 16 В
+    ("10uF", "C_0805_2012Metric"): "C15850",     # Samsung CL21A106KAYNNNE, 25 В
+    ("4.7uF", "C_0805_2012Metric"): "C1779",     # Samsung CL21A475KAQNNNE, 25 В
+    ("10k", "R_0402_1005Metric"): "C25744",      # Uniroyal 0402WGF1002TCE, 1%
+    ("1k", "R_0402_1005Metric"): "C11702",       # Uniroyal 0402WGF1001TCE, 1%
+    ("5.1k", "R_0402_1005Metric"): "C25905",     # Uniroyal 0402WGF5101TCE, 1%
+    ("100k", "R_0402_1005Metric"): "C25741",     # Uniroyal 0402WGF1003TCE, 1%
+    ("0R/FB", "R_0402_1005Metric"): "C17168",    # Uniroyal 0402WGF0000TCE
+    ("33pF", "C_0402_1005Metric"): "C1562",      # FH 0402CG330J500NT, 50 В, C0G
+    ("120R", "R_0603_1608Metric"): "C22787",     # Uniroyal 0603WAF1200T5E, 1% - терминатор CAN
+    ("LED", "LED_0805_2012Metric"): "C84256",    # NationStar NCD0805R1, красный
+    ("510R", "R_0805_2012Metric"): "C17734",     # Uniroyal 0805W8F5100T5E, 1% - мастер-подтяжка LIN
+    ("470k", "R_0805_2012Metric"): "C17709",     # Uniroyal 0805W8F4703T5E, 1%, 150 В - вход вольтметра
+    ("18k", "R_0402_1005Metric"): "C25762",      # Uniroyal 0402WGF1802TCE, 1%
+    ("220R", "R_0402_1005Metric"): "C25091",     # Uniroyal 0402WGF2200TCE, 1%
+    ("470pF", "C_0402_1005Metric"): "C75274",    # FH 0402CG471J500NT, 50 В, C0G
+    ("1N4148W", "D_SOD-123"): "C81598",          # ST, Basic - защита от переполюсовки
+    ("SMAJ24CA", "D_SMA"): "C28092",             # RUILON, двунаправленный TVS 24 В (вход 12 В)
+    ("PESD1LIN", "D_SOD-323"): "C58901",         # Nexperia PESD1LIN,115 - TVS линий LIN/K-line
+    ("SS34", "D_SMA"): "C8678",                  # MDD SS34, 3 А 40 В, Basic - диодное ИЛИ 5V
+    # JST PH 4 пина, вертикальный: ставит завод (волной). Ответка - корпус PHR-4
+    # (C111514) + контакты SPH-002T-P0.5S (C111515), или готовый кабель "JST PH 2.0 4P".
+    # Колодка внутренней шины, боковое исполнение - стандарт docs/BUS.md.
+    ("BUS", "JST_PH_S4B-PH-K_1x04_P2.00mm_Horizontal"): "C157926",
+    ("5V IN", "JST_PH_B4B-PH-K_1x04_P2.00mm_Vertical"): "C131334",
+    # PSU-Unit (питание от АКБ автомобиля), склад проверен 2026-10-12
+    ("5V OUT", "JST_PH_B4B-PH-K_1x04_P2.00mm_Vertical"): "C131334",
+    ("BAT MOD", "JST_PH_B6B-PH-K_1x06_P2.00mm_Vertical"): "C131342",
+    ("12V IN", "TerminalBlock_Phoenix_MKDS-1,5-2_1x02_P5.00mm_Horizontal"): "C474881",  # Cixi Kefa KF301-5.0-2P
+    ("240k", "R_0402_1005Metric"): "C64043",     # Uniroyal 0402WGF2403TCE, 1% - RT ~404 кГц
+    ("82k", "R_0402_1005Metric"): "C4142",       # Uniroyal 0402WGF8202TCE, 1% - UVLO
+    ("56k", "R_0402_1005Metric"): "C25796",      # Uniroyal 0402WGF5602TCE, 1% - FB 5.28 В
+    ("470k", "R_0402_1005Metric"): "C25790",     # Uniroyal 0402WGF4703TCE, 1% - UVLO
+    ("8.2nF", "C_0402_1005Metric"): "C45186",    # FH 0402B822K500NT, 50 В, X7R - компенсация
+    ("82pF", "C_0402_1005Metric"): "C45501",     # FH 0402CG820J500NT, 50 В, C0G - компенсация
+    ("22uF", "C_1206_3216Metric"): "C12891",     # Samsung CL31A226KAHNNNE, 25 В, X5R, Basic
+    ("2.2uF 100V", "C_1210_3225Metric"): "C55151",  # Samsung CL32B225KCJSNNE, 100 В, X7R
+    ("100uF 63V", "CP_Elec_10x10"): "C28241",    # Lelon RVT1J101M1010, 63 В, 10x10
+    ("10uH", "L_TDK_SPM10065VT"): "C5119327",    # TDK SPM10065VT-100M-D, Isat 15 А
+    ("5A", "Fuse_Littelfuse_451_2410"): "C48467",  # Littelfuse 0451005.MRL, 5 А 125 В, быстрый
+    ("SMCJ24CA", "D_SMC"): "C151279",            # Littelfuse, двунаправленный TVS 1500 Вт
+    ("B560C", "D_SMC"): "C85100",                # Diodes B560C-13-F, 60 В 5 А
+    ("SMBJ5.0A", "D_SMB"): "C110528",            # Diodes SMBJ5.0A-13-F - TVS шины 5 В
+    ("BZT52C12", "D_SOD-123"): "C124196",        # Diodes BZT52C12-7-F - затвор P-FET
+}
+# Замены с той же распиновкой - на случай, когда штатной детали нет на складе.
+ALT = {
+    "AP2112K-3.3": "аналог по выводам ME6211C33M5G-N (C82942), SOT-23-5, 1 VIN / 2 GND / 3 EN / 5 VOUT",
+}
+# Активные детали уникальны по номиналу, футпринт для них не нужен.
+LCSC_ANY = {
+    "STM32G0B1CBT6": "C2847904",  # LQFP-48 7x7, 2x FDCAN, 144 КБ ОЗУ
+    "STM32G474RET6": "C521608",
+    "STM32H723ZGT6": "C730146",
+    "AP2112K-3.3": "C51118",
+    "TLV75733": "C485517",   # TI TLV75733PDBVR, SOT-23-5, 1 А, падение <=0.425 В при 1 А
+    "25MHz": "C9006",       # Yangxing X322525MOB4SI, SMD-3225 4 пада, CL 12 пФ
+    "8MHz": "C115962",      # YXC X50328MSB2GI, SMD-5032 2 пада, CL 20 пФ - под обвязку 33 пФ
+    # XKB TS-1187A-B-A-B: Basic Part, корпус 5.1x5.1, шаг падов 3.70 и разлёт
+    # выводов 6.5 - совпадает с посадочным местом ALPS SKQG, под которое разведено.
+    "RESET": "C318884",
+    "BOOT0": "C318884",
+    "BOOT": "C318884",
+    "32.768kHz": "C97606",  # SC-32S, CL 12.5 пФ, корпус 3215 - под нашу обвязку 18 пФ
+    "USB-C": "C165948",
+    "TCAN332G": "C2671083",  # TI TCAN332GDCNT, SOT-23-8, 3.3 В, CAN FD 5 Мбит/с
+    "TLE7258D": "C540017",   # Infineon, TSON-8, LIN без TXD-таймаута; склад мал (~250 шт)
+    "LMV358": "C7980",       # ST LMV358IDT, SO-8, 2 ОУ rail-to-rail, 2.7-6 В
+    "BAT54S": "C47546",      # Nexperia BAT54S,215 - оригинал; клампы входов (качество > цена)
+    "MSK12C02": "C431540",   # SHOU HAN, движковый SPDT - терминатор вкл/выкл
+    "ESP32-S3-WROOM-1-N16R8": "C2913202",  # Espressif, 16 МБ flash + 8 МБ octal PSRAM
+    "MAX98357A": "C910544",  # Maxim MAX98357AETE+T, TQFN-16, 3 Вт класс D, I2S
+    "ICS-43434": "C5656610", # TDK, LGA-6, I2S MEMS; снят с производства (EOL) - склад мал (~350)
+    "TPS54360B-Q1": "C2687968",  # TI TPS54360BQDDARQ1, SO-8 PowerPAD, 60 В 3.5 А, AEC-Q100
+    "DMP6023LE": "C154901",  # Diodes DMP6023LE-13, P-FET 60 В, SOT-223 - переполюсовка
+}
+# Требование к нагрузочной ёмкости кварца - по номиналу. Оно остаётся в примечании
+# даже когда номер известен: именно CL молча ломает плату при замене детали.
+CL_NOTE = {
+    "25MHz": "обвязка 18 пФ - только под CL 12...12.5 пФ",
+    "32.768kHz": "обвязка 18 пФ - только под CL 12...12.5 пФ",
+    "8MHz": "обвязка 33 пФ - только под CL 20 пФ",
+}
+with open(os.path.join(out, "BOM.csv"), "w", newline="") as f:
+    w = csv.writer(f)
+    # Имена колонок - те, что ждёт JLCPCB (Comment / Designator / Footprint /
+    # LCSC Part #); свои Qty и примечание идут следом, лишние колонки он игнорирует.
+    w.writerow(["Comment", "Designator", "Footprint", "LCSC Part #", "Qty", "Note"])
+    # Пассивку берут по номиналу и типоразмеру, а активной детали нужен конкретный
+    # номер - советовать для неё "подобрать по номиналу" бессмысленно.
+    passive = re.compile(r"^[\d.]+\s*(?:[pnuµmk]?[FRH]|R|k|M|Ohm)\b|^0R$|^LED$", re.I)
+    # Одинаковые детали сводим в одну строку по номеру LCSC. У кнопок "номинал" -
+    # это функция (RESET / BOOT0), а деталь одна: две строки на один номер
+    # JLCPCB помечает как "multiple lines matched to the same part".
+    merged = defaultdict(list)
+    for (val, fid), refs in rows.items():
+        code = LCSC.get((val, fid.split(":")[-1])) or LCSC_ANY.get(val, "")
+        merged[(code, fid) if code else (val, fid)].append((val, refs))
+    for (_k, fid), group in sorted(merged.items(), key=lambda kv: (kv[0][1], kv[0][0])):
+        val0 = group[0][0]
+        val = "/".join(sorted({v for v, _ in group}))
+        refs = [r for _, rr in group for r in rr]
+        code = LCSC.get((val0, fid.split(":")[-1])) or LCSC_ANY.get(val0, "")
+        if code:
+            note = "проверить наличие на складе"
+            if val0 in ALT:
+                note += "; " + ALT[val0]
+            if any(r.startswith("Y") for r in refs):
+                note += "; " + CL_NOTE.get(val0, "сверить CL кварца с обвязкой на плате")
+        elif any(r.startswith("Y") for r in refs):
+            # Кварц с другой CL уведёт частоту или не запустится.
+            note = CL_NOTE.get(val0, "сверить CL кварца с обвязкой на плате") + " - брать кварц с такой же"
+        elif header.get(val0):
+            note = ("гребёнка: номер не проставлен намеренно, паяется самостоятельно; "
+                    "нужна впаянной - впишите номер LCSC и заказывайте Standard")
+        elif passive.match(val):
+            note = "подобрать из JLCPCB Basic Parts по номиналу/типоразмеру"
+        else:
+            note = "уточнить номер LCSC под конкретную деталь"
+        w.writerow([val, ",".join(sorted(refs)), fid, code, len(refs), note])
+
+geom = os.path.join(out, "_geom.json")
+if os.path.exists(geom):
+    g = json.load(open(geom))
+    netof = g.get("netof", {})
+    with open(os.path.join(out, "PINOUT.csv"), "w", newline="") as f:
+        w = csv.writer(f)
+        w.writerow(["Header", "HeaderPin", "MCU_Pin", "Signal"])
+        for k, mn in sorted(g["hdrmap"].items(), key=lambda kv: (kv[0].split(".")[0], int(kv[0].split(".")[1]))):
+            ref, hn = k.split(".")
+            w.writerow([ref, hn, mn, netof.get(str(mn), "")])
+print("BOM.csv / PINOUT.csv ->", out)
