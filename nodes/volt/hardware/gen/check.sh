@@ -15,3 +15,6 @@ grep -E "^\*\* ERC|Found" erc.rpt | head -3
 "$PY" gen/conn.py "$NAME.kicad_pcb" 2>&1 | grep -v -i -E "$F" | tail -3
 "$PY" gen/crtyd.py "$NAME.kicad_pcb" 2>&1 | grep -v -i -E "$F"
 "$PY" gen/silkchk.py "$NAME.kicad_pcb" 2>&1 | grep -v -i -E "$F"
+# BOM и карта выводов - из той же платы, что сейчас собрана. Иначе BOM тихо
+# отстаёт от схемы: именно так один раз и вышло.
+"$PY" gen/outputs.py "$NAME.kicad_pcb" 2>&1 | grep -v -i -E "$F"

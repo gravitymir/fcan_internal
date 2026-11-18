@@ -36,6 +36,7 @@ import pcbnew
 import pcbhelp
 from pcbhelp import Builder, mm, tomm, V, FPDIR
 import kigen
+import symlib
 
 OUT = sys.argv[1] if len(sys.argv) > 1 else "."
 NAME = "Volt-Node"
@@ -64,6 +65,21 @@ USBCFP = ("Connector_USB", "USB_C_Receptacle_HRO_TYPE-C-31-M-12")
 PHFP = ("Connector_JST", "JST_PH_S4B-PH-K_1x04_P2.00mm_Horizontal")
 JPFP = ("Jumper", "SolderJumper-2_P1.3mm_Open_Pad1.0x1.5mm")
 HDRLIB = "Connector_PinHeader_2.54mm"
+
+# Проектная библиотека символов: AP2210K-3.3 в библиотеках KiCad нет. Графику
+# берём у AP2204K-1.5 (тот же SOT-23-5, та же раскладка 1/2/3/5), правим только
+# вывод 4: у AP2204K это NC, у AP2210K - BYP, и на нём висит конденсатор.
+SYMLIB = "fcan"
+symlib.build(OUT, SYMLIB, [
+    {"name": "AP2210K-3.3",
+     "from": "Regulator_Linear:AP2204K-1.5",
+     "pins": {"4": ("BYP", "passive")},
+     "props": {"Reference": "U",
+               "Value": "AP2210K-3.3",
+               "Footprint": "Package_TO_SOT_SMD:SOT-23-5",
+               "Datasheet": "https://www.diodes.com/assets/Datasheets/AP2210.pdf",
+               "Description": "300 mA LDO 3.3 V, VIN 4.3...13.2 V, SOT-23-5"}},
+])
 
 USBC_LIBID = "Connector:USB_C_Receptacle_USB2.0_16P"
 SHIELD = [p.number for p in kigen.get_symbol(USBC_LIBID).pins if p.name == "SHIELD"][0]
@@ -124,9 +140,10 @@ b.place("C14", C0402[0], C0402[1], 133.0, 126.5, 0, value="100nF")
 b.place("R11", R0402[0], R0402[1], 131.0, 126.5, 0, value="10k")
 
 # --- питание: диодное ИЛИ 5 В и LDO
-b.place("U3", SOT235[0], SOT235[1], 140.0, 134.5, 0, value="AP2112K-3.3")
+b.place("U3", SOT235[0], SOT235[1], 140.0, 134.5, 0, value="AP2210K-3.3")
 b.place("C12", C0603[0], C0603[1], 144.5, 134.5, 0, value="1uF")
 b.place("C13", C0402[0], C0402[1], 140.0, 138.5, 0, value="1uF")
+b.place("C15", C0402[0], C0402[1], 136.0, 138.5, 0, value="100pF")
 b.place("D3", SMA[0], SMA[1], 137.0, 129.5, 0, value="SS34")
 b.place("D4", SMA[0], SMA[1], 105.0, 120.0, 0, value="SS34")
 
@@ -217,10 +234,22 @@ d.add(kigen.Part("D3", "Device:D_Schottky", "SS34", "%s:%s" % SMA,
                  {"2": "BUS5V", "1": "+5V"}, at=(400, 215)))
 d.add(kigen.Part("D4", "Device:D_Schottky", "SS34", "%s:%s" % SMA,
                  {"2": "VBUS", "1": "+5V"}, at=(400, 240)))
-d.add(kigen.Part("U3", "Regulator_Linear:AP2112K-3.3", "AP2112K-3.3", "%s:%s" % SOT235,
-                 {"1": "+5V", "2": "GND", "3": "+5V", "5": "+3V3"}, at=(455, 225)))
+# AP2210K-3.3, а не AP2112K: тот же корпус и те же выводы 1/2/3/5, но вход до
+# 13.2 В (предел 15 В) против 6 В, защита от обратной полярности, диапазон до
+# +125 C против +85 и PSRR 75 дБ на 100 Гц против 65. Здесь важно всё три:
+# в колодку шины рядом с автомобилем рано или поздно попадут 12 В, прибор
+# работает в машине, а опора 1.65 В ратиометрична - шум питания идёт прямо
+# в измерение. Ток 300 мА вместо 600 узлу не нужен: он берёт около 50 мА.
+# Пин-совместимая замена на случай дефицита - AP2112K-3.3 (C51118): у неё
+# вывод 4 это NC, и C15 на нём просто ничего не делает.
+d.add(kigen.Part("U3", "%s:AP2210K-3.3" % SYMLIB, "AP2210K-3.3", "%s:%s" % SOT235,
+                 {"1": "+5V", "2": "GND", "3": "+5V", "4": "BYP", "5": "+3V3"},
+                 at=(455, 225)))
 d.add(kigen.Part("C12", "Device:C", "1uF", "%s:%s" % C0603,
                  {"1": "+5V", "2": "GND"}, at=(428, 258)))
+# BYP: 100 пФ по типовой схеме из datasheet - это и есть тот самый низкий шум.
+d.add(kigen.Part("C15", "Device:C", "100pF", "%s:%s" % C0402,
+                 {"1": "BYP", "2": "GND"}, at=(482, 250)))
 d.add(kigen.Part("C13", "Device:C", "1uF", "%s:%s" % C0402,
                  {"1": "+3V3", "2": "GND"}, at=(495, 258)))
 

@@ -67,10 +67,20 @@ def children(blk):
 
 _libcache = {}
 
+# Каталоги проектных библиотек символов: ищутся раньше системной. Нужны для
+# частей, которых в библиотеках KiCad нет, - см. symlib.py.
+EXTRA_SYMDIRS = []
+
 
 def _libtext(lib):
     if lib not in _libcache:
-        _libcache[lib] = open(os.path.join(SYMDIR, lib + ".kicad_sym")).read()
+        for d in EXTRA_SYMDIRS + [SYMDIR]:
+            path = os.path.join(d, lib + ".kicad_sym")
+            if os.path.exists(path):
+                _libcache[lib] = open(path, encoding="utf-8").read()
+                break
+        else:
+            raise IOError("библиотека символов не найдена: %s.kicad_sym" % lib)
     return _libcache[lib]
 
 
