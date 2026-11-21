@@ -48,6 +48,7 @@ JPFP = ("Jumper", "SolderJumper-2_P1.3mm_Open_TrianglePad1.0x1.5mm")  # как �
 HDRLIB = "Connector_PinHeader_2.54mm"
 HDR2 = (HDRLIB, "PinHeader_1x02_P2.54mm_Vertical")
 HDR7 = (HDRLIB, "PinHeader_1x07_P2.54mm_Vertical")
+HDR2x6 = (HDRLIB, "PinHeader_2x06_P2.54mm_Vertical")
 
 # Проектные символы ядра. AP2210K-3.3 в библиотеках KiCad нет: графику берём у
 # AP2204K-1.5 (тот же SOT-23-5, та же раскладка 1/2/3/5), правим только вывод 4:

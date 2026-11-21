@@ -1,4 +1,4 @@
-ERC report (2026-11-21T05:34:08, Encoding UTF8)
+ERC report (2026-11-21T17:34:50, Encoding UTF8)
 Report includes: Errors
 
 ***** Sheet /
@@ -11,9 +11,6 @@ Report includes: Errors
 [pin_not_connected]: Pin not connected
     ; error
     @(132.06 mm, 99.68 mm): Symbol U1 Pin 40 [PD2, Bidirectional, Line]
-[pin_not_connected]: Pin not connected
-    ; error
-    @(132.06 mm, 102.22 mm): Symbol U1 Pin 41 [PD3, Bidirectional, Line]
 [pin_not_connected]: Pin not connected
     ; error
     @(132.06 mm, 107.30 mm): Symbol U1 Pin 30 [PC6, Bidirectional, Line]
@@ -64,27 +61,6 @@ Report includes: Errors
     @(187.94 mm, 127.62 mm): Symbol U1 Pin 21 [PB2, Bidirectional, Line]
 [pin_not_connected]: Pin not connected
     ; error
-    @(187.94 mm, 130.16 mm): Symbol U1 Pin 42 [PB3, Bidirectional, Line]
-[pin_not_connected]: Pin not connected
-    ; error
-    @(187.94 mm, 132.70 mm): Symbol U1 Pin 43 [PB4, Bidirectional, Line]
-[pin_not_connected]: Pin not connected
-    ; error
-    @(187.94 mm, 135.24 mm): Symbol U1 Pin 44 [PB5, Bidirectional, Line]
-[pin_not_connected]: Pin not connected
-    ; error
-    @(187.94 mm, 137.78 mm): Symbol U1 Pin 45 [PB6, Bidirectional, Line]
-[pin_not_connected]: Pin not connected
-    ; error
-    @(187.94 mm, 140.32 mm): Symbol U1 Pin 46 [PB7, Bidirectional, Line]
-[pin_not_connected]: Pin not connected
-    ; error
-    @(187.94 mm, 142.86 mm): Symbol U1 Pin 47 [PB8, Bidirectional, Line]
-[pin_not_connected]: Pin not connected
-    ; error
-    @(187.94 mm, 145.40 mm): Symbol U1 Pin 48 [PB9, Bidirectional, Line]
-[pin_not_connected]: Pin not connected
-    ; error
     @(187.94 mm, 147.94 mm): Symbol U1 Pin 22 [PB10, Bidirectional, Line]
 [pin_not_connected]: Pin not connected
     ; error
@@ -102,7 +78,7 @@ Report includes: Errors
     ; error
     @(187.94 mm, 160.64 mm): Symbol U1 Pin 27 [PB15, Bidirectional, Line]
 
- ** ERC messages: 33  Errors 33  Warnings 0
+ ** ERC messages: 25  Errors 25  Warnings 0
 
  ** Ignored checks:
     - Global label only appears once in the schematic

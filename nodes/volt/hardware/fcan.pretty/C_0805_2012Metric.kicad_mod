@@ -8,7 +8,7 @@
 	(property "Reference" "REF**"
 		(at -3.4 -0.2 0)
 		(layer "F.SilkS")
-		(uuid "2adcdce8-9315-4008-8066-6273f78b1bba")
+		(uuid "fef0e30f-d0be-4fb2-9927-d84f22e50e4a")
 		(effects
 			(font
 				(size 1 1)
@@ -20,7 +20,7 @@
 		(at 0 1.68 0)
 		(layer "F.Fab")
 		(hide yes)
-		(uuid "ac8589c2-9ad2-4c61-b48b-09e0237f46e7")
+		(uuid "fab267f4-29e9-4e17-9690-816d23a79dbb")
 		(effects
 			(font
 				(size 1 1)
@@ -32,7 +32,7 @@
 		(at 0 0 0)
 		(layer "F.Fab")
 		(hide yes)
-		(uuid "160b3041-8af3-4e8b-9865-faa5e5c35032")
+		(uuid "0d6643a7-bc2f-41f2-887b-d0a3515fcea6")
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -43,7 +43,7 @@
 		(at 0 0 0)
 		(layer "F.Fab")
 		(hide yes)
-		(uuid "186ff678-2ae6-4829-b2cb-65c8b2b8fe88")
+		(uuid "a23fbbdd-384e-4998-9ba8-8d6f3ec0725e")
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -54,7 +54,7 @@
 		(at 0 0 0)
 		(layer "F.SilkS")
 		(hide yes)
-		(uuid "044c38da-b08c-446a-8067-8f9805828bb2")
+		(uuid "85e6ae43-1378-4c6b-a605-7c2d1143bc83")
 		(effects
 			(font
 				(size 1 1)
@@ -72,7 +72,7 @@
 			(type solid)
 		)
 		(layer "F.SilkS")
-		(uuid "1d80649b-a443-4c80-a867-7447ce69f3bb")
+		(uuid "510324a3-d2f6-4fc1-9547-c3a55d0c28de")
 	)
 	(fp_line
 		(start -0.261252 0.735)
@@ -82,7 +82,7 @@
 			(type solid)
 		)
 		(layer "F.SilkS")
-		(uuid "0cc0a9ab-f32d-4ff2-a9e7-cc7f3cf4a9f7")
+		(uuid "e97f91de-4d50-4710-8a81-482df98228cf")
 	)
 	(fp_rect
 		(start -1.7 -0.98)
@@ -93,7 +93,7 @@
 		)
 		(fill no)
 		(layer "F.CrtYd")
-		(uuid "a6951c10-cf5c-4847-a3e2-ff4003b28e87")
+		(uuid "d1726d30-9496-4e23-9049-8c3b2f77a6f1")
 	)
 	(fp_rect
 		(start -1 -0.625)
@@ -104,12 +104,12 @@
 		)
 		(fill no)
 		(layer "F.Fab")
-		(uuid "d12a89ab-ecaf-4c0d-83d5-05c924f76385")
+		(uuid "075cfede-c26e-420a-98f8-db8ccd1a4a4e")
 	)
 	(fp_text user "${REFERENCE}"
 		(at 0 0 0)
 		(layer "F.Fab")
-		(uuid "f7d8ca0d-a616-4df4-acd6-79afa98d1810")
+		(uuid "1197c202-1c14-4704-991e-0979397cfd94")
 		(effects
 			(font
 				(size 0.5 0.5)
@@ -122,14 +122,14 @@
 		(size 1 1.45)
 		(layers "F.Cu" "F.Mask" "F.Paste")
 		(roundrect_rratio 0.25)
-		(uuid "36c894aa-b8e4-4acb-ae03-6197c24702ea")
+		(uuid "e56e2730-8708-4945-b213-a31ad7d9a795")
 	)
 	(pad "2" smd roundrect
 		(at 0.95 0)
 		(size 1 1.45)
 		(layers "F.Cu" "F.Mask" "F.Paste")
 		(roundrect_rratio 0.25)
-		(uuid "6442054d-8eb4-4fb9-af90-bc93c90f9639")
+		(uuid "b406d9c7-e146-40cb-adf1-f72ee0556265")
 	)
 	(embedded_fonts no)
 	(model "${KICAD10_3DMODEL_DIR}/Capacitor_SMD.3dshapes/C_0805_2012Metric.step"
