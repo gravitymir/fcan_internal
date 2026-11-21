@@ -2,7 +2,8 @@
 
 Ядро - это всё, что одинаково на каждом узле: STM32G0B1 с кварцем, трансивер
 TCAN332G, две колодки шины с терминатором, питание 5 В -> 3.3 В через диодное
-ИЛИ и AP2210K, USB-C для DFU, кнопки RESET/BOOT, SWD, светодиод состояния.
+ИЛИ и AP2210K, USB-C для DFU, кнопки RESET/BOOT, отладочная гребёнка
+(SWD + NRST + UART), светодиод состояния.
 Узел (вольтметр, шлюз, LIN...) добавляет к ядру только свою часть.
 
 Здесь одна таблица PARTS, и из неё берётся всё: схема, цепи платы, значения,
@@ -43,10 +44,10 @@ LED0805 = ("LED_SMD", "LED_0805_2012Metric")
 SWFP = ("Button_Switch_SMD", "SW_SPST_SKQG_WithoutStem")
 USBCFP = ("Connector_USB", "USB_C_Receptacle_HRO_TYPE-C-31-M-12")
 PHFP = ("Connector_JST", "JST_PH_S4B-PH-K_1x04_P2.00mm_Horizontal")
-JPFP = ("Jumper", "SolderJumper-2_P1.3mm_Open_Pad1.0x1.5mm")
+JPFP = ("Jumper", "SolderJumper-2_P1.3mm_Open_TrianglePad1.0x1.5mm")  # как в can_probe: площадки «стрелкой»
 HDRLIB = "Connector_PinHeader_2.54mm"
 HDR2 = (HDRLIB, "PinHeader_1x02_P2.54mm_Vertical")
-HDR4 = (HDRLIB, "PinHeader_1x04_P2.54mm_Vertical")
+HDR7 = (HDRLIB, "PinHeader_1x07_P2.54mm_Vertical")
 
 # Проектные символы ядра. AP2210K-3.3 в библиотеках KiCad нет: графику берём у
 # AP2204K-1.5 (тот же SOT-23-5, та же раскладка 1/2/3/5), правим только вывод 4:
@@ -84,6 +85,8 @@ MCU_PINS = {
     "8": "OSC_IN",       # PF0
     "9": "OSC_OUT",      # PF1
     "10": "NRST",        # PF2
+    "13": "UART_TX",     # PA2 - USART2 TX, консоль отладки
+    "14": "UART_RX",     # PA3 - USART2 RX
     "33": "USB_DM",      # PA9/PA11 - нужен ремап
     "34": "USB_DP",      # PA10/PA12 - нужен ремап
     "35": "SWDIO",       # PA13
@@ -115,9 +118,13 @@ PARTS = {
     "C14": ("Device:C", "100nF", C0402, {"1": "NRST", "2": "GND"}, (88, 205)),
     "SW2": ("Switch:SW_Push", "BOOT", SWFP, {"1": "SWCLK", "2": "+3V3"}, (122, 205)),
     "R11": ("Device:R", "10k", R0402, {"1": "SWCLK", "2": "GND"}, (150, 205)),
-    # SWD нужен не для прошивки (её делает ПЗУ-загрузчик), а для отладки.
-    "J5": ("Connector_Generic:Conn_01x04", "SWD", HDR4,
-           {"1": "+3V3", "2": "SWDIO", "3": "SWCLK", "4": "GND"}, (190, 205)),
+    # Отладочная гребёнка: SWD + NRST для отладчика, UART для консоли.
+    # Нужна не для прошивки (её делает ПЗУ-загрузчик), а для отладки.
+    # NRST - чтобы отладчик подключался к зависшему чипу (connect under reset).
+    # TX/RX подписаны со стороны МК: TX - выход узла, к RX переходника.
+    "J5": ("Connector_Generic:Conn_01x07", "DEBUG", HDR7,
+           {"1": "+3V3", "2": "SWDIO", "3": "SWCLK", "4": "GND",
+            "5": "NRST", "6": "UART_TX", "7": "UART_RX"}, (190, 205)),
 
     # --- светодиод состояния
     "R12": ("Device:R", "1k", R0402, {"1": "+3V3", "2": "LED_A"}, (330, 115)),

@@ -1,4 +1,4 @@
-ERC report (2026-11-18T08:29:58, Encoding UTF8)
+ERC report (2026-11-21T00:04:47, Encoding UTF8)
 Report includes: Errors
 
 ***** Sheet /
@@ -29,12 +29,6 @@ Report includes: Errors
 [missing_power_pin]: Symbol U4 has input power pins in units [ C ] that are not placed
     ; error
     @(165.00 mm, 45.00 mm): Symbol U4 [LMV358]
-[pin_not_connected]: Pin not connected
-    ; error
-    @(187.94 mm, 84.44 mm): Symbol U1 Pin 13 [PA2, Bidirectional, Line]
-[pin_not_connected]: Pin not connected
-    ; error
-    @(187.94 mm, 86.98 mm): Symbol U1 Pin 14 [PA3, Bidirectional, Line]
 [pin_not_connected]: Pin not connected
     ; error
     @(187.94 mm, 89.52 mm): Symbol U1 Pin 15 [PA4, Bidirectional, Line]
@@ -108,7 +102,7 @@ Report includes: Errors
     ; error
     @(187.94 mm, 160.64 mm): Symbol U1 Pin 27 [PB15, Bidirectional, Line]
 
- ** ERC messages: 35  Errors 35  Warnings 0
+ ** ERC messages: 33  Errors 33  Warnings 0
 
  ** Ignored checks:
     - Global label only appears once in the schematic

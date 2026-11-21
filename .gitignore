@@ -4,3 +4,4 @@ __pycache__/
 *-backups/
 _easyeda_cache/
 .history/
+*.lck
