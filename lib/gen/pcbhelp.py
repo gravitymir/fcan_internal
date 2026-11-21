@@ -69,6 +69,16 @@ class Builder:
         self.fps[ref] = fp
         return fp
 
+    def label(self, ref, x, y, rot=0.0):
+        """Поставить позиционное обозначение детали в абсолютную точку платы.
+
+        Библиотечное место подписи (над корпусом) на плотной плате налезает на
+        соседей; так её можно унести туда, где свободно.
+        """
+        t = self.fps[ref].Reference()
+        t.SetTextPos(V(x, y))
+        t.SetTextAngleDegrees(rot)
+
     def set_model(self, ref, path, hide_others=True):
         """Подменить 3D-модель компонента (для футпринтов без модели в библиотеке)."""
         import pcbnew as _p
