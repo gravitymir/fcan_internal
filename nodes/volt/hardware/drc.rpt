@@ -1,8 +1,8 @@
 ** Drc report for Volt-Node.kicad_pcb **
-** Created on 2026-11-22T00:28:09 **
+** Created on 2026-11-22T01:06:43 **
 ** Report includes: Errors, Warnings, Exclusions **
 
-** Found 23 DRC violations **
+** Found 22 DRC violations **
 [clearance]: Clearance violation (netclass 'pwr' clearance 0.2000 mm; actual 0.1500 mm)
     Rule: netclass 'pwr'; error
     @(122.3625 mm, 126.5250 mm): Pad 1 [CAN_TX] of U2 on F.Cu
@@ -27,11 +27,7 @@
     Rule: netclass 'can'; error
     @(124.6375 mm, 127.1750 mm): Pad 7 [CANH] of U2 on F.Cu
     @(124.6375 mm, 126.5250 mm): Pad 8 [<no net>] of U2 on F.Cu
-[starved_thermal]: Thermal relief connection to zone incomplete (layer F.Cu; zone min spoke count 2; actual 1)
-    Local override; error
-    @(99.9500 mm, 99.9500 mm): Zone [GND] on F.Cu, priority 0
-    @(123.0000 mm, 106.3000 mm): PTH pad 4 [GND] of J1
-[starved_thermal]: Thermal relief connection to zone incomplete (layer F.Cu; 1 spokes connected to isolated island)
+[starved_thermal]: Thermal relief connection to zone incomplete (layer F.Cu; 2 spokes connected to isolated island)
     Local override; error
     @(99.9500 mm, 99.9500 mm): Zone [GND] on F.Cu, priority 0
     @(115.0000 mm, 132.5600 mm): PTH pad 12 [GND] of J6
@@ -61,6 +57,14 @@
     @(131.0600 mm, 107.7600 mm): Segment of J1 on F.Silkscreen
 [silk_edge_clearance]: Silkscreen clipped by board edge
     Rule: board setup constraints silk; warning
+    @(100.0000 mm, 136.5000 mm): Segment on Edge.Cuts
+    @(101.7000 mm, 114.3000 mm): Segment of J3 on F.Silkscreen
+[silk_edge_clearance]: Silkscreen clipped by board edge
+    Rule: board setup constraints silk; warning
+    @(100.0000 mm, 136.5000 mm): Segment on Edge.Cuts
+    @(101.7000 mm, 123.7000 mm): Segment of J3 on F.Silkscreen
+[silk_edge_clearance]: Silkscreen clipped by board edge
+    Rule: board setup constraints silk; warning
     @(146.5000 mm, 138.0000 mm): Segment on Edge.Cuts
     @(120.9400 mm, 130.2400 mm): Segment of J2 on F.Silkscreen
 [silk_edge_clearance]: Silkscreen clipped by board edge
@@ -87,14 +91,6 @@
     Rule: board setup constraints silk; warning
     @(146.5000 mm, 138.0000 mm): Segment on Edge.Cuts
     @(131.0600 mm, 138.0600 mm): Segment of J2 on F.Silkscreen
-[silk_edge_clearance]: Silkscreen clipped by board edge
-    Rule: board setup constraints silk; warning
-    @(100.0000 mm, 136.5000 mm): Segment on Edge.Cuts
-    @(101.7000 mm, 114.3000 mm): Segment of J3 on F.Silkscreen
-[silk_edge_clearance]: Silkscreen clipped by board edge
-    Rule: board setup constraints silk; warning
-    @(100.0000 mm, 136.5000 mm): Segment on Edge.Cuts
-    @(101.7000 mm, 123.7000 mm): Segment of J3 on F.Silkscreen
 
 ** Found 0 unconnected pads **
 
@@ -125,7 +121,7 @@
     @(135.0900 mm, 102.8000 mm): Pad 1 [VREFD] of R6 on F.Cu
 [net_conflict]: Pad net (VREF) doesn't match net given by schematic (AOUT)
     Local override; warning
-    @(130.1625 mm, 115.2500 mm): Pad 12 [VREF] of U1 on F.Cu
+    @(122.4550 mm, 115.5600 mm): Pad 12 [VREF] of U1 on F.Cu
 [net_conflict]: Pad net (FB) doesn't match net given by schematic (AOUT)
     Local override; warning
     @(140.4750 mm, 108.6350 mm): Pad 2 [FB] of U4 on F.Cu
