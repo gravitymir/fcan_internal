@@ -1,119 +1,104 @@
 #!/usr/bin/env python3
-"""Автотрассировка платы через Freerouting.
+"""Автотрассировка платы через kroute.
 
-    route.py <плата.kicad_pcb> [проходов]
+    route.py <плата.kicad_pcb> [секунд]
 
-Плату делает build.py, этот скрипт её только разводит: выгружает в Specctra
-DSN, гоняет Freerouting и кладёт сессию <плата>.ses рядом с платой. Дорожки
-в саму плату вносит следующий запуск build.py (node.finish подхватывает .ses),
-поэтому генератор остаётся единственным источником платы.
+Плату делает build.py, этот скрипт её только разводит: kroute прокладывает
+дорожки на копии платы и сохраняет новую медь в <плата>.routes.json рядом
+с платой. В саму плату трассы вносит следующий запуск build.py (node.finish
+накладывает их через `kroute apply`), поэтому генератор остаётся
+единственным источником платы.
 
-После перестановки деталей старая сессия к плате не подходит: запустить
-route.py заново.
+После перестановки деталей старые трассы к плате не подходят: запустить
+route.py заново (node.finish об этом скажет - kroute apply --verify).
 
-Freerouting - .jar под Java: FREEROUTING_JAR (иначе
-~/tools/freerouting/freerouting-*.jar) и JAVA (иначе java из ~/tools/jre/*/bin
-или из PATH). Консольная сборка freerouting-cli.exe 2.5.0 не годится: падает на
-первом проходе (ошибка GraalVM при сериализации ComponentOutline) и висит
-без нагрузки, не сохраняя результат.
+Правила: ширины и зазоры - классы цепей в .kicad_pro (lib/gen/netclass.py),
+дифпары и прочее - kroute.toml рядом с платой, иначе общий lib/gen/kroute.toml.
+
+kroute - один бинарник: KROUTE, иначе kroute из PATH, иначе соседний
+репозиторий ../autorouter/target/release/kroute(.exe).
 """
+import json
 import os
-import glob
-import re
 import shutil
 import subprocess
 import sys
+import tempfile
 
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-import kicadenv
-
-kicadenv.quiet()
-import pcbnew
-
-from netclass import CLASSES   # те же классы node.finish пишет в .kicad_pro
+HERE = os.path.dirname(os.path.abspath(__file__))
 
 
-def tool():
-    home = os.path.expanduser("~")
-    jar = os.environ.get("FREEROUTING_JAR") or next(iter(sorted(glob.glob(
-        os.path.join(home, "tools", "freerouting", "freerouting-*.jar")), reverse=True)), None)
-    if not jar or not os.path.exists(jar):
-        sys.exit("Freerouting .jar не найден (задайте FREEROUTING_JAR)")
-    java = os.environ.get("JAVA") or next(iter(sorted(glob.glob(
-        os.path.join(home, "tools", "jre", "*", "bin", "java.exe")), reverse=True)), None)         or shutil.which("java")
-    if not java:
-        sys.exit("Java не найдена (задайте JAVA)")
-    return [java, "-jar", jar, "--gui.enabled=false"]
+def kroute():
+    exe = os.environ.get("KROUTE") or shutil.which("kroute")
+    if not exe:
+        repo = os.path.dirname(os.path.dirname(HERE))
+        for name in ("kroute.exe", "kroute"):
+            p = os.path.join(os.path.dirname(repo), "autorouter", "target", "release", name)
+            if os.path.exists(p):
+                exe = p
+                break
+    if not exe:
+        sys.exit("kroute не найден (задайте KROUTE)")
+    return exe
 
 
-def _q(n):
-    return '"%s"' % n if re.search(r'[\s()"-]', n) else n
+def routes_path(pcb):
+    return os.path.splitext(pcb)[0] + ".routes.json"
 
 
-def patch_classes(dsn):
-    """Разнести цепи по классам в секции network файла DSN."""
-    s = open(dsn, encoding="utf-8").read()
-    m = re.search(r"\(class kicad_default (.*?)\(circuit", s, re.S)
-    if not m:
-        raise RuntimeError("в DSN нет класса kicad_default")
-    names = re.findall(r'"[^"]*"|[^\s"]+', m.group(1))
-    names = [n.strip('"') for n in names]
-    taken = {n for _, _, nets in CLASSES.values() for n in nets}
-    rest = [n for n in names if n not in taken]
-    head = "(class kicad_default %s\n      " % " ".join(_q(n) for n in rest)
-    s = s[:m.start()] + head + s[m.end() - len("(circuit"):]
-    via = re.search(r'\(use_via "([^"]+)"\)', s).group(1)
-    extra = ""
-    for cname, (w, c, nets) in CLASSES.items():
-        nets = [n for n in nets if n in names]
-        if not nets:
-            continue
-        extra += ('    (class %s %s\n      (circuit\n        (use_via "%s")\n      )\n'
-                  '      (rule\n        (width %d)\n        (clearance %d)\n      )\n    )\n'
-                  % (cname, " ".join(_q(n) for n in nets), via,
-                     round(w * 1000), round(c * 1000)))
-    i = s.index("(class kicad_default")
-    s = s[:i] + extra.lstrip() + "    " + s[i:]
-    open(dsn, "w", encoding="utf-8").write(s)
+def config(pcb):
+    own = os.path.join(os.path.dirname(pcb), "kroute.toml")
+    return own if os.path.exists(own) else os.path.join(HERE, "kroute.toml")
+
+
+def apply(pcb):
+    """Наложить сохранённые трассы на свежесобранную плату (вызывает node.finish)."""
+    routes = routes_path(pcb)
+    r = subprocess.run([kroute(), "apply", pcb, routes, "-o", pcb],
+                       capture_output=True, text=True)
+    if r.returncode != 0:
+        raise RuntimeError("kroute apply: %s" % (r.stdout.strip() or r.stderr.strip()))
+    d = json.loads(r.stdout)
+    return d.get("segments", 0), d.get("vias", 0)
 
 
 def main():
     pcb = os.path.abspath(sys.argv[1])
-    passes = sys.argv[2] if len(sys.argv) > 2 else "40"
-    base = os.path.splitext(pcb)[0]
-    dsn, ses = base + ".dsn", base + ".ses"
-
-    b = pcbnew.LoadBoard(pcb)
-    for t in list(b.GetTracks()):
-        b.Remove(t)
-    for z in list(b.Zones()):
-        b.Remove(z)
-    if not pcbnew.ExportSpecctraDSN(b, dsn):
-        sys.exit("не удалось выгрузить DSN")
-    patch_classes(dsn)
-
-    # Трассировщик недетерминирован: бывает, что оставляет пару соединений.
-    # Тогда - ещё попытка, до трёх.
-    cmd = tool() + ["-de", dsn, "-do", ses, "-mp", passes]
-    print(" ".join(cmd))
-    for attempt in range(1, 4):
-        if os.path.exists(ses):
-            os.remove(ses)
-        r = subprocess.run(cmd, capture_output=True, text=True,
-                           stdin=subprocess.DEVNULL, timeout=1800)
-        log = r.stdout + r.stderr
-        m = re.findall(r"Auto-routing stage completed.*?\((\d+) unrouted and (\d+) violations", log)
-        if "Exception" in log or not m:
-            print(log[-1500:])
-            sys.exit("Freerouting упал")
-        left, viol = map(int, m[-1])
-        print("попытка %d: не разведено %d, замечаний %d" % (attempt, left, viol))
-        if left == 0:
-            break
-    os.remove(dsn)
-    if not os.path.exists(ses):
-        sys.exit("Freerouting не сохранил сессию")
-    print("сессия ->", ses)
+    secs = sys.argv[2] if len(sys.argv) > 2 else "120"
+    routes = routes_path(pcb)
+    png = os.path.splitext(pcb)[0] + ".routes.png"
+    with tempfile.TemporaryDirectory() as tmp:
+        # копия платы с проектом и правилами: kroute и его DRC видят те же классы
+        base = os.path.splitext(pcb)[0]
+        for ext in (".kicad_pcb", ".kicad_pro", ".kicad_dru"):
+            if os.path.exists(base + ext):
+                shutil.copy(base + ext, os.path.join(tmp, "board" + ext))
+        cmd = [kroute(), "route", os.path.join(tmp, "board.kicad_pcb"), "--strip", "--drc",
+               "-c", config(pcb), "-t", secs, "-o", os.path.join(tmp, "routed.kicad_pcb"),
+               "--emit", routes, "--png", png]
+        print(" ".join(cmd))
+        r = subprocess.run(cmd, capture_output=True, text=True, stdin=subprocess.DEVNULL)
+    try:
+        d = json.loads(r.stdout)
+    except ValueError:
+        sys.exit("kroute: %s" % (r.stdout.strip() or r.stderr.strip())[-1500:])
+    if d.get("status") == "error":
+        sys.exit("kroute: %s" % d.get("error"))
+    st, drc = d["stats"], d.get("drc", {})
+    print("%s: разведено %d цепей, не разведено %d, via %d, %.0f мм, %.1f с"
+          % (d["status"], d["nets_routed"], d["nets_unrouted"], st["vias"], st["length_mm"], st["time_s"]))
+    for u in d["unrouted"]:
+        print("  НЕ РАЗВЕДЕНО %s: %s %s" % (u["net"], u["reason"], u.get("at")))
+    for p in d.get("pairs", []):
+        print("  пара %s/%s: %s, вместе %.1f мм, перекос %.2f мм"
+              % (p["p"], p["n"], p["status"], p["coupled_mm"], p["skew_mm"]))
+    for n in d["notes"]:
+        print("  заметка:", n)
+    print("  DRC: нарушений трассировки %s, несоединённых %s" % (drc.get("routing_violations"), drc.get("unconnected")))
+    print("трассы ->", routes)
+    print("картинка ->", png)
+    if r.returncode != 0:
+        sys.exit(r.returncode)
 
 
 if __name__ == "__main__":

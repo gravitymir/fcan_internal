@@ -7,6 +7,7 @@ import pcbnew
 import core
 import netclass
 import pcbhelp
+import route
 
 FPLIB = "fcan"
 
@@ -62,27 +63,24 @@ def finish(b, d, out, name, fill=False):
                 '  (lib (name "%s")(type "KiCad")(uri "${KIPRJMOD}/%s.pretty")(options "")(descr "Footprints used by this board"))\n)\n'
                 % (FPLIB, FPLIB))
 
-    # Разводка: сессия Freerouting от route.py, если она есть. Плюс земляной
-    # полигон на обоих слоях - он же собирает землю, которую трассировщик
-    # оставил незамкнутой.
-    ses = os.path.join(out, name + ".ses")
-    if os.path.exists(ses):
-        b.b.BuildListOfNets()
-        if not pcbnew.ImportSpecctraSES(b.b, ses):
-            raise RuntimeError("не удалось загрузить %s" % ses)
-        bb = b.b.GetBoardEdgesBoundingBox()
-        cx, cy = pcbnew.ToMM(bb.GetCenter().x), pcbnew.ToMM(bb.GetCenter().y)
-        w, h = pcbnew.ToMM(bb.GetWidth()), pcbnew.ToMM(bb.GetHeight())
-        for layer in (pcbnew.F_Cu, pcbnew.B_Cu):
-            b.zone("GND", layer, cx, cy, w, h)
-        fill = True
-        print("дорожки из", os.path.basename(ses))
+    # Земляной полигон на обоих слоях - всегда: kroute разводит с оглядкой на
+    # него (отводы только к тем падам, куда заливка не дойдёт).
+    bb = b.b.GetBoardEdgesBoundingBox()
+    cx, cy = pcbnew.ToMM(bb.GetCenter().x), pcbnew.ToMM(bb.GetCenter().y)
+    w, h = pcbnew.ToMM(bb.GetWidth()), pcbnew.ToMM(bb.GetHeight())
+    for layer in (pcbnew.F_Cu, pcbnew.B_Cu):
+        b.zone("GND", layer, cx, cy, w, h)
 
     pcb = os.path.join(out, name + ".kicad_pcb")
     b.finish(pcb, fill=False)
     # Классы цепей - в проект. После SaveBoard (он пишет .kicad_pro заново)
     # и до заливки: зазор класса hv должен учитываться и полигоном.
     netclass.write_project(os.path.join(out, name + ".kicad_pro"))
+    # Разводка: трассы от route.py (kroute), если они есть.
+    if os.path.exists(route.routes_path(pcb)):
+        ns, nv = route.apply(pcb)
+        print("дорожки из %s: %d отрезков, %d via" % (os.path.basename(route.routes_path(pcb)), ns, nv))
+        fill = True
     if fill:
         pcbhelp.fill_zones(pcb)
     print("OK ->", out)
